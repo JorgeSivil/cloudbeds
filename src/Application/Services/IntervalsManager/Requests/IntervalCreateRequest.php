@@ -1,6 +1,6 @@
 <?php
 
-namespace CloudBeds\Application\Services\IntervalsManager;
+namespace CloudBeds\Application\Services\IntervalsManager\Requests;
 
 use DateTime;
 

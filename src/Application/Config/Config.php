@@ -9,7 +9,7 @@ class Config
         'db.password' => 'root',
         'db.host' => 'mysql',
         'db.name' => 'cloudbeds',
-        'db.charset' => 'utf8mb4_0900_ai_ci',
+        'db.charset' => 'utf8mb4',
     ];
 
     public function get($id)

@@ -33,4 +33,9 @@ class App
         $router = $this->container->get('CloudBeds\Application\Services\Router\Router');
         $router->run();
     }
+
+    public function getContainer()
+    {
+        return $this->container;
+    }
 }

@@ -2,38 +2,43 @@
 
 namespace CloudBeds\Domain\Services\Intervals;
 
-use CloudBeds\Application\Services\IntervalsManager\IntervalCreateRequest;
-use CloudBeds\Application\Services\IntervalsManager\IntervalDeleteRequest;
-use CloudBeds\Application\Services\IntervalsManager\IntervalGetRequest;
-use CloudBeds\Application\Services\IntervalsManager\IntervalUpdateRequest;
-use CloudBeds\Infrastructure\Services\DatabaseConnector\MySql;
+use CloudBeds\Application\Services\IntervalsManager\Requests\IntervalCreateRequest;
+use CloudBeds\Application\Services\IntervalsManager\Requests\IntervalDeleteRequest;
+use CloudBeds\Application\Services\IntervalsManager\Requests\IntervalGetRequest;
+use CloudBeds\Application\Services\IntervalsManager\Requests\IntervalUpdateRequest;
+use CloudBeds\Domain\Entities\Interval;
+use CloudBeds\Domain\Repositories\Intervals;
+use Exception;
 
 class IntervalsManager
 {
-    protected $dbConnection;
+    protected $intervalsRepository;
 
-    public function __construct(MySql $dbConnection)
+    public function __construct(Intervals $intervalsRepository)
     {
-        $this->dbConnection = $dbConnection;
+        $this->intervalsRepository = $intervalsRepository;
     }
 
     public function get(IntervalGetRequest $request)
     {
-
     }
 
-    public function create(IntervalCreateRequest $request)
+    /**
+     * @param IntervalCreateRequest $request
+     * @return Interval
+     * @throws Exception
+     */
+    public function create(IntervalCreateRequest $request): Interval
     {
-
+        $interval = $this->intervalsRepository->create($request->getFrom(), $request->getTo(), $request->getPrice());
+        return $interval;
     }
 
     public function update(IntervalUpdateRequest $request)
     {
-
     }
 
     public function delete(IntervalDeleteRequest $request)
     {
-
     }
 }

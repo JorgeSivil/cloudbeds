@@ -2,6 +2,10 @@
 
 namespace CloudBeds\Application\Services\IntervalsManager;
 
+use CloudBeds\Application\Services\IntervalsManager\Requests\IntervalCreateRequest;
+use CloudBeds\Application\Services\IntervalsManager\Requests\IntervalDeleteRequest;
+use CloudBeds\Application\Services\IntervalsManager\Requests\IntervalGetRequest;
+use CloudBeds\Application\Services\IntervalsManager\Requests\IntervalUpdateRequest;
 use CloudBeds\Domain\Services\Intervals\IntervalsManager;
 
 class Intervals
@@ -24,7 +28,7 @@ class Intervals
 
     public function create(IntervalCreateRequest $request)
     {
-
+        return $this->intervalsManager->create($request);
     }
 
     public function update(IntervalUpdateRequest $request)

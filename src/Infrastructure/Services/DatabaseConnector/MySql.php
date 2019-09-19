@@ -60,7 +60,7 @@ class MySql
             && $config->has('db.name')
             && $config->has('db.charset')
         ) {
-            return true;
+            return;
         }
         throw new Exception('Missing required database configs.');
     }
