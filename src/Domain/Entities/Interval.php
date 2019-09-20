@@ -43,4 +43,52 @@ class Interval implements Arrayable
             'price' => $this->price
         ];
     }
+
+    /**
+     * @return DateTime
+     */
+    public function getFrom(): DateTime
+    {
+        return $this->from;
+    }
+
+    /**
+     * @param DateTime $from
+     */
+    public function setFrom(DateTime $from): void
+    {
+        $this->from = $from;
+    }
+
+    /**
+     * @return DateTime
+     */
+    public function getTo(): DateTime
+    {
+        return $this->to;
+    }
+
+    /**
+     * @param DateTime $to
+     */
+    public function setTo(DateTime $to): void
+    {
+        $this->to = $to;
+    }
+
+    /**
+     * @return string
+     */
+    public function getPrice(): string
+    {
+        return $this->price;
+    }
+
+    /**
+     * @param string $price
+     */
+    public function setPrice(string $price): void
+    {
+        $this->price = $price;
+    }
 }

@@ -3,6 +3,7 @@
 namespace Tests;
 
 use CloudBeds\App;
+use CloudBeds\Infrastructure\Services\DatabaseConnector\MySql;
 use PHPUnit\Framework\TestCase;
 
 class IntegrationTestCase extends TestCase
@@ -12,13 +13,21 @@ class IntegrationTestCase extends TestCase
      */
     protected $app;
 
-    /**
-     * IntegrationTestCase constructor.
-     */
-    public function __construct()
+    /** @var MySql */
+    protected $dbConnection;
+
+    public function setUp(): void
     {
         $this->app = new App();
-        parent::__construct();
+        /** @var MySql $dbConnection */
+        $this->dbConnection = $this->app->getContainer()->get(MySql::class);
+        $this->dbConnection->getConnection()->beginTransaction();
+    }
+
+    public function tearDown(): void
+    {
+        $this->dbConnection->getConnection()->rollBack();
+        parent::tearDown();
     }
 
     /**

@@ -6,9 +6,11 @@ use CloudBeds\Domain\Entities\Interval;
 use CloudBeds\Infrastructure\Services\DatabaseConnector\MySql;
 use DateTime;
 use Exception;
+use PDO;
 
 class Intervals
 {
+    const DATETIME_FORMAT = 'Y-m-d H:i:s';
     /**
      * @var MySql
      */
@@ -31,9 +33,11 @@ class Intervals
     /**
      * @param DateTime $from
      * @param DateTime $to
+     * @return Interval[]
      */
     public function getAllInTimeRange(DateTime $from, DateTime $to)
     {
+        return [];
     }
 
     /**
@@ -48,8 +52,8 @@ class Intervals
         $query = sprintf('INSERT INTO %s VALUES (:from, :to, :price)', $this->tableName);
         $pst = $this->dbConnection->getConnection()->prepare($query);
         $result = $pst->execute([
-            ':from' => $from->format(DATE_ATOM),
-            ':to' => $to->format(DATE_ATOM),
+            ':from' => $from->format(self::DATETIME_FORMAT),
+            ':to' => $to->format(self::DATETIME_FORMAT),
             ':price' => $price
         ]);
         if (!$result) {
@@ -60,7 +64,13 @@ class Intervals
 
     public function getByPk(DateTime $from, DateTime $to)
     {
-
+        $query = sprintf('SELECT * FROM %s WHERE `from` = :from AND `to` = :to', $this->tableName);
+        $pst = $this->dbConnection->getConnection()->prepare($query);
+        $result = $pst->execute([
+            ':from' => $from->format(self::DATETIME_FORMAT),
+            ':to' => $to->format(self::DATETIME_FORMAT),
+        ]);
+        return $result ? $pst->fetch(PDO::FETCH_ASSOC)[0] : null;
     }
 
     public function update(DateTime $from, DateTime $to, DateTime $newFrom, DateTime $newTo, string $price)

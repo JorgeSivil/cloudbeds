@@ -2,7 +2,7 @@
 version: "3.1"
 services:
     mysql:
-        image: mysql:8.0
+        image: mysql:5.7
         container_name: cloudbeds-mysql
         volumes:
             - ./mysql-storage:/var/lib/mysql
@@ -20,11 +20,15 @@ services:
         working_dir: /app
         ports:
             - "8080:80"
+        depends_on:
+            - php-fpm
 
     php-fpm:
         build: docker/php-fpm
         container_name: cloudbeds-php-fpm
         working_dir: /app
+        depends_on:
+            - mysql
         volumes:
             - .:/app
             - ./docker/php-fpm/php-ini-overrides.ini:/etc/php/7.3/fpm/conf.d/99-overrides.ini
