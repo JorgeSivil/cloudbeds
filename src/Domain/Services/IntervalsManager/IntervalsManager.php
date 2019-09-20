@@ -1,13 +1,13 @@
 <?php
 
-namespace CloudBeds\Domain\Services\Intervals;
+namespace CloudBeds\Domain\Services\IntervalsManager;
 
 use CloudBeds\Application\Services\Intervals\Requests\IntervalCreateRequest;
 use CloudBeds\Application\Services\Intervals\Requests\IntervalDeleteRequest;
 use CloudBeds\Application\Services\Intervals\Requests\IntervalGetRequest;
 use CloudBeds\Application\Services\Intervals\Requests\IntervalUpdateRequest;
 use CloudBeds\Domain\Entities\Interval;
-use CloudBeds\Domain\Repositories\Intervals;
+use CloudBeds\Domain\Repositories\IntervalsRepository;
 use DateTime;
 use Exception;
 
@@ -16,7 +16,7 @@ class IntervalsManager
     protected $intervalsRepository;
     protected $secondsToleranceToMerge = 60;
 
-    public function __construct(Intervals $intervalsRepository)
+    public function __construct(IntervalsRepository $intervalsRepository)
     {
         $this->intervalsRepository = $intervalsRepository;
     }
@@ -35,9 +35,10 @@ class IntervalsManager
         $searchDatetimeFrom = new DateTime($request->getFrom()->format(DATE_ATOM));
         $searchDatetimeTo = new DateTime($request->getTo()->format(DATE_ATOM));
         /** @var Interval[] $intervals */
+        // This allows us to merge intervals properly
         $intervals = $this->intervalsRepository->getAllInTimeRange(
-            $searchDatetimeFrom->modify('-1 second'), // This allows us to merge intervals properly
-            $searchDatetimeTo->modify('+1 second')
+            $searchDatetimeFrom->modify(sprintf('-%d seconds', $this->secondsToleranceToMerge)),
+            $searchDatetimeTo->modify(sprintf('+%d seconds', $this->secondsToleranceToMerge))
         );
 
         $deleteRequests = [];
@@ -103,6 +104,11 @@ class IntervalsManager
             // Default case
             $createRequests[] = $request;
         }
+
+        // All intervals are now continuous, if any. We still have to merge them.
+
+        $operations = $this->mergeContinuousIntervals($updateRequests, $createRequests, $deleteRequests);
+
         try {
             $interval = $this->intervalsRepository->create($request->getFrom(), $request->getTo(), $request->getPrice());
         } catch (Exception $e) {

@@ -7,7 +7,7 @@ use CloudBeds\Application\Services\Intervals\Requests\IntervalDeleteRequest;
 use CloudBeds\Application\Services\Intervals\Requests\IntervalGetRequest;
 use CloudBeds\Application\Services\Intervals\Requests\IntervalUpdateRequest;
 use CloudBeds\Domain\Entities\Interval;
-use CloudBeds\Domain\Services\Intervals\IntervalsManager;
+use CloudBeds\Domain\Services\IntervalsManager\IntervalsManager;
 use Exception;
 
 class Intervals

@@ -4,7 +4,7 @@ namespace Tests\Integration\Application\Services;
 
 use CloudBeds\Application\Services\Intervals\Intervals;
 use CloudBeds\Application\Services\Intervals\Requests\IntervalCreateRequest;
-use CloudBeds\Domain\Repositories\Intervals as IntervalsRepository;
+use CloudBeds\Domain\Repositories\IntervalsRepository as IntervalsRepository;
 use DateTime;
 use Tests\IntegrationTestCase;
 

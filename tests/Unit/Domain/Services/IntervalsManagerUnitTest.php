@@ -5,8 +5,8 @@ namespace Tests\Unit\Domain\Services;
 use CloudBeds\Application\Services\Intervals\Requests\IntervalCreateRequest;
 use CloudBeds\Application\Services\Intervals\Requests\IntervalDeleteRequest;
 use CloudBeds\Application\Services\Intervals\Requests\IntervalUpdateRequest;
-use CloudBeds\Domain\Repositories\Intervals;
-use CloudBeds\Domain\Services\Intervals\IntervalsManager;
+use CloudBeds\Domain\Repositories\IntervalsRepository;
+use CloudBeds\Domain\Services\IntervalsManager\IntervalsManager;
 use DateTime;
 use Mockery;
 use ReflectionException;
@@ -24,7 +24,7 @@ class IntervalsManagerUnitTest extends UnitTestCase
      */
     public function testIntervalsAreMergedWhenNewIntervalIsContinuous()
     {
-        $mockedRepository = Mockery::mock(Intervals::class);
+        $mockedRepository = Mockery::mock(IntervalsRepository::class);
         $intervalManager = new IntervalsManager($mockedRepository);
         $updateInterval = new IntervalUpdateRequest(
             new DateTime('2019-02-20 15:00'),
@@ -64,21 +64,23 @@ class IntervalsManagerUnitTest extends UnitTestCase
         $newInterval = $newUpdateRequests[0];
         /** @var IntervalDeleteRequest $newIntervalDelete */
         $newIntervalDelete = $newDeleteRequests[0];
-        // Check that PK remains intact.
-        $this->assertSame('2019-02-20 15:00:00', $newInterval->getFrom()->format(Intervals::DATETIME_FORMAT));
-        $this->assertSame('2019-02-20 16:30:00', $newInterval->getTo()->format(Intervals::DATETIME_FORMAT));
-        // Check that first interval now ends at last interval's time.
-        $this->assertSame('2019-02-20 15:00:00', $newInterval->getNewFrom()->format(Intervals::DATETIME_FORMAT));
-        $this->assertSame('2019-02-20 18:00:00', $newInterval->getNewTo()->format(Intervals::DATETIME_FORMAT));
-        // Check that last update interval gets deleted because it was absorbed by the first.
 
+        // Check that PK remains intact.
+        $this->assertSame('2019-02-20 15:00:00', $newInterval->getFrom()->format(IntervalsRepository::DATETIME_FORMAT));
+        $this->assertSame('2019-02-20 16:30:00', $newInterval->getTo()->format(IntervalsRepository::DATETIME_FORMAT));
+
+        // Check that first interval now ends at last interval's time.
+        $this->assertSame('2019-02-20 15:00:00', $newInterval->getNewFrom()->format(IntervalsRepository::DATETIME_FORMAT));
+        $this->assertSame('2019-02-20 18:00:00', $newInterval->getNewTo()->format(IntervalsRepository::DATETIME_FORMAT));
+
+        // Check that last update interval gets deleted because it was absorbed by the first.
         $this->assertSame(
-            $updateInterval2->getFrom()->format(Intervals::DATETIME_FORMAT),
-            $newIntervalDelete->getFrom()->format(Intervals::DATETIME_FORMAT)
+            $updateInterval2->getFrom()->format(IntervalsRepository::DATETIME_FORMAT),
+            $newIntervalDelete->getFrom()->format(IntervalsRepository::DATETIME_FORMAT)
         );
         $this->assertSame(
-            $updateInterval2->getTo()->format(Intervals::DATETIME_FORMAT),
-            $newIntervalDelete->getTo()->format(Intervals::DATETIME_FORMAT)
+            $updateInterval2->getTo()->format(IntervalsRepository::DATETIME_FORMAT),
+            $newIntervalDelete->getTo()->format(IntervalsRepository::DATETIME_FORMAT)
         );
     }
 
@@ -92,7 +94,7 @@ class IntervalsManagerUnitTest extends UnitTestCase
      */
     public function testIntervalsAreNotMergedWhenNewIntervalIsContinuousWithDifferentPrice()
     {
-        $mockedRepository = Mockery::mock(Intervals::class);
+        $mockedRepository = Mockery::mock(IntervalsRepository::class);
         $intervalManager = new IntervalsManager($mockedRepository);
         $updateInterval = new IntervalUpdateRequest(
             new DateTime('2019-02-20 15:00'),
@@ -141,7 +143,7 @@ class IntervalsManagerUnitTest extends UnitTestCase
      */
     public function testIntervalsAreMergedWhenNewIntervalIsContinuousWithFirst()
     {
-        $mockedRepository = Mockery::mock(Intervals::class);
+        $mockedRepository = Mockery::mock(IntervalsRepository::class);
         $intervalManager = new IntervalsManager($mockedRepository);
         $updateInterval = new IntervalUpdateRequest(
             new DateTime('2019-02-20 15:00'),
@@ -178,8 +180,19 @@ class IntervalsManagerUnitTest extends UnitTestCase
         $this->assertEquals(2, sizeof($newUpdateRequests));
         $this->assertEquals(0, sizeof($newCreateRequests));
         $this->assertEquals(0, sizeof($newDeleteRequests));
-        $this->assertSame('2019-02-20 15:00:00', $newUpdateInterval->getNewFrom()->format(Intervals::DATETIME_FORMAT));
-        $this->assertSame('2019-02-20 17:00:00', $newUpdateInterval->getNewTo()->format(Intervals::DATETIME_FORMAT));
+
+        // Check that PK remains intact.
+        $this->assertSame(
+            $updateInterval->getFrom()->format(IntervalsRepository::DATETIME_FORMAT),
+            $newUpdateInterval->getFrom()->format(IntervalsRepository::DATETIME_FORMAT)
+        );
+        $this->assertSame(
+            $updateInterval->getTo()->format(IntervalsRepository::DATETIME_FORMAT),
+            $newUpdateInterval->getTo()->format(IntervalsRepository::DATETIME_FORMAT)
+        );
+
+        $this->assertSame('2019-02-20 15:00:00', $newUpdateInterval->getNewFrom()->format(IntervalsRepository::DATETIME_FORMAT));
+        $this->assertSame('2019-02-20 17:00:00', $newUpdateInterval->getNewTo()->format(IntervalsRepository::DATETIME_FORMAT));
         $this->assertSame($updateInterval2, $newUpdateRequests[1]);
     }
 
@@ -192,7 +205,7 @@ class IntervalsManagerUnitTest extends UnitTestCase
      */
     public function testIntervalsAreMergedWhenNewIntervalIsContinuousWithLast()
     {
-        $mockedRepository = Mockery::mock(Intervals::class);
+        $mockedRepository = Mockery::mock(IntervalsRepository::class);
         $intervalManager = new IntervalsManager($mockedRepository);
         $updateInterval = new IntervalUpdateRequest(
             new DateTime('2019-02-20 15:00'),
@@ -229,8 +242,19 @@ class IntervalsManagerUnitTest extends UnitTestCase
         $this->assertEquals(2, sizeof($newUpdateRequests));
         $this->assertEquals(0, sizeof($newCreateRequests));
         $this->assertEquals(0, sizeof($newDeleteRequests));
-        $this->assertSame('2019-02-20 16:00:00', $newUpdateInterval->getNewFrom()->format(Intervals::DATETIME_FORMAT));
-        $this->assertSame('2019-02-20 18:00:00', $newUpdateInterval->getNewTo()->format(Intervals::DATETIME_FORMAT));
+
+        // Check that PK remains intact.
+        $this->assertSame(
+            $updateInterval2->getFrom()->format(IntervalsRepository::DATETIME_FORMAT),
+            $newUpdateInterval->getFrom()->format(IntervalsRepository::DATETIME_FORMAT)
+        );
+        $this->assertSame(
+            $updateInterval2->getTo()->format(IntervalsRepository::DATETIME_FORMAT),
+            $newUpdateInterval->getTo()->format(IntervalsRepository::DATETIME_FORMAT)
+        );
+
+        $this->assertSame('2019-02-20 16:00:00', $newUpdateInterval->getNewFrom()->format(IntervalsRepository::DATETIME_FORMAT));
+        $this->assertSame('2019-02-20 18:00:00', $newUpdateInterval->getNewTo()->format(IntervalsRepository::DATETIME_FORMAT));
         $this->assertSame($updateInterval, $newUpdateRequests[0]);
     }
 }
