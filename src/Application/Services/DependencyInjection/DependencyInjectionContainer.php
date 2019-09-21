@@ -28,6 +28,11 @@ class DependencyInjectionContainer implements ContainerInterface
         $this->classInstances[self::class] = $this;
     }
 
+    public function registerInstance(string $className, object $object)
+    {
+        $this->classInstances[$className] = $object;
+    }
+
     /**
      * @param string $className
      * @return object
@@ -60,6 +65,7 @@ class DependencyInjectionContainer implements ContainerInterface
         foreach ($parameters as $parameter) {
             $resolved[] = $this->resolveParameter($parameter);
         }
+
         return $reflection->newInstanceArgs($resolved); // return new instance with dependencies resolved
     }
 
@@ -104,8 +110,9 @@ class DependencyInjectionContainer implements ContainerInterface
             if (!class_exists($className)) {
                 throw new ClassNotFoundException(sprintf('Class \'%s\' could not be found.', $className));
             }
-            $object = $this->getConcrete((string) $className);
+            $object = $this->getConcrete((string)$className);
         }
+
         return $object;
     }
 
@@ -131,6 +138,7 @@ class DependencyInjectionContainer implements ContainerInterface
         } catch (UndefinedParameterException $e) {
         } catch (ReflectionException $e) {
         }
+
         return false;
     }
 }

@@ -25,6 +25,11 @@ class IntervalsRepository
     protected $tableName = 'intervals';
 
     /**
+     * @var bool True if this class is controlling the database transaction, false if it was originated in other place
+     */
+    protected $controlTransactionFlag = false;
+
+    /**
      * Intervals constructor.
      * @param MySql $dbConnection
      */
@@ -36,12 +41,19 @@ class IntervalsRepository
     /**
      * @param DateTime $from
      * @param DateTime $to
-     * @return Interval
+     * @param bool $strict False to include intervals not entirely between the range, i.e. intervals
+     * that overlap by only a part.
+     * @return Interval[]
      * @throws Exception
      */
-    public function getAllInTimeRange(DateTime $from, DateTime $to)
+    public function getAllInTimeRange(DateTime $from, DateTime $to, bool $strict = true)
     {
-        $query = sprintf('SELECT * FROM %s WHERE `from` >= :from AND `to` <= :to', $this->tableName);
+        $query = sprintf(
+            'SELECT * FROM %s WHERE (`from` BETWEEN :from AND :to) %s (`to` BETWEEN :from AND :to)',
+            $this->tableName,
+            $strict ? 'AND' : 'OR'
+        );
+
         $pst = $this->dbConnection->getConnection()->prepare($query);
         $result = $pst->execute([
             ':from' => $from->format(self::DATETIME_FORMAT),
@@ -50,7 +62,7 @@ class IntervalsRepository
         $ret = [];
         if ($result) {
             foreach ($pst->fetchAll(PDO::FETCH_ASSOC) as $row) {
-                $ret[] = new Interval($row['from'], $row['to'], $row['price']);
+                $ret[] = new Interval(new DateTime($row['from']), new DateTime($row['to']), $row['price']);
             }
         }
 
@@ -81,9 +93,25 @@ class IntervalsRepository
     }
 
     /**
+     * @return array
+     * @throws Exception
+     */
+    public function getAll()
+    {
+        $query = sprintf('SELECT `from`, `to`, `price` FROM %s ORDER BY `from`', $this->tableName);
+        $ret = [];
+        foreach ($this->dbConnection->getConnection()->query($query) as $row) {
+            $ret[] = new Interval(new DateTime($row['from']), new DateTime($row['to']), $row['price']);
+        }
+
+        return $ret;
+    }
+
+    /**
      * @param DateTime $from
      * @param DateTime $to
      * @return Interval|null
+     * @throws Exception
      */
     public function getByPk(DateTime $from, DateTime $to)
     {
@@ -94,10 +122,10 @@ class IntervalsRepository
             ':to' => $to->format(self::DATETIME_FORMAT),
         ]);
         $ret = null;
-        if ($result) {
-            $row = $pst->fetch(PDO::FETCH_ASSOC)[0];
-            $ret = new Interval($row['from'], $row['to'], $row['price']);
+        if ($result && $row = $pst->fetch(PDO::FETCH_ASSOC)) {
+            $ret = new Interval(new DateTime($row['from']), new DateTime($row['to']), $row['price']);
         }
+
         return $ret;
     }
 
@@ -107,17 +135,18 @@ class IntervalsRepository
      * @param DateTime $newFrom
      * @param DateTime $newTo
      * @param string $price
+     * @throws Exception
      */
     public function update(DateTime $from, DateTime $to, DateTime $newFrom, DateTime $newTo, string $price): void
     {
         $query = sprintf(
-            'UPDATE `%s` SET `from` = :newFrom, `to` = :newTo, `price` = :price WHERE `from` = :from AND `to` = :to',
+            'UPDATE `%s` SET `from` = :newFrom, `to` = :newTo, `price` = :price WHERE `from` = :from AND `to` = :to;',
             $this->tableName,
         );
         $pst = $this->dbConnection->getConnection()->prepare($query);
         $pst->execute([
             ':newFrom' => $newFrom->format(self::DATETIME_FORMAT),
-            ':newTom' => $newTo->format(self::DATETIME_FORMAT),
+            ':newTo' => $newTo->format(self::DATETIME_FORMAT),
             ':price' => $price,
             ':from' => $from->format(self::DATETIME_FORMAT),
             ':to' => $to->format(self::DATETIME_FORMAT),
@@ -127,6 +156,7 @@ class IntervalsRepository
     /**
      * @param DateTime $from
      * @param DateTime $to
+     * @throws Exception
      */
     public function delete(DateTime $from, DateTime $to): void
     {
@@ -141,11 +171,15 @@ class IntervalsRepository
     /**
      * @param IntervalCreateRequest[] $createRequests
      * @return array
+     * @throws Exception
      */
     public function createAll(array $createRequests)
     {
+        if (!$createRequests) {
+            return [];
+        }
         $valuesConstruction = str_repeat('(?, ?, ?),', count($createRequests) - 1) . '(?, ?, ?)';
-        $query = sprintf('INSERT INTO `%s` (`from`, `to`, `price`) VALUES (%s)', $this->tableName, $valuesConstruction);
+        $query = sprintf('INSERT INTO `%s` (`from`, `to`, `price`) VALUES %s', $this->tableName, $valuesConstruction);
         $values = [];
         $ret = [];
         /** @var IntervalCreateRequest $createRequest */
@@ -155,24 +189,29 @@ class IntervalsRepository
             $values[] = $createRequest->getPrice();
             $ret[] = new Interval($createRequest->getFrom(), $createRequest->getTo(), $createRequest->getPrice());
         }
-        $controlTransactionCommit = false;
-        if (!$this->dbConnection->getConnection()->inTransaction()) {
-            $this->dbConnection->getConnection()->beginTransaction();
-            $controlTransactionCommit = true;
+        try {
+            $this->beginTransaction();
+            $pst = $this->dbConnection->getConnection()->prepare($query);
+            $pst->execute($values);
+            $this->commitTransaction();
+        } catch (Exception $e) {
+            $this->rollBackTransaction();
+            throw $e;
         }
-        $pst = $this->dbConnection->getConnection()->prepare($query);
-        $pst->execute($values);
-        if ($controlTransactionCommit) {
-            $this->dbConnection->getConnection()->commit();
-        }
+
         return $ret;
     }
 
     /**
      * @param IntervalDeleteRequest[] $deleteRequests
+     * @return bool
+     * @throws Exception
      */
     public function deleteAll(array $deleteRequests = [])
     {
+        if (!$deleteRequests) {
+            return true;
+        }
         $inConstruction = str_repeat('(?,?),', count($deleteRequests) - 1) . '(?, ?)';
         $query = sprintf('DELETE FROM `%s` WHERE (`from`, `to`) IN (%s)', $this->tableName, $inConstruction);
         $pkValues = [];
@@ -181,16 +220,30 @@ class IntervalsRepository
             $pkValues[] = $deleteRequest->getFrom()->format(self::DATETIME_FORMAT);
             $pkValues[] = $deleteRequest->getTo()->format(self::DATETIME_FORMAT);
         }
-        $pst = $this->dbConnection->getConnection()->prepare($query);
-        $pst->execute($pkValues);
+        try {
+            $this->beginTransaction();
+            $pst = $this->dbConnection->getConnection()->prepare($query);
+            $pst->execute($pkValues);
+            $this->commitTransaction();
+        } catch (Exception $e) {
+            $this->rollBackTransaction();
+            throw $e;
+        }
+
+        return true;
     }
 
     /**
      * No mass update can be done in MySQL without ugly CASE... so make 1 query for each update :(
      * @param IntervalUpdateRequest[] $updateRequests
+     * @return bool
+     * @throws Exception
      */
     public function updateAll(array $updateRequests = [])
     {
+        if (!$updateRequests) {
+            return true;
+        }
         foreach ($updateRequests as $updateRequest) {
             $this->update(
                 $updateRequest->getFrom(),
@@ -200,12 +253,15 @@ class IntervalsRepository
                 $updateRequest->getPrice()
             );
         }
+
+        return true;
     }
 
     /**
      * @param array $updateRequests
      * @param array $createRequests
      * @param array $deleteRequests
+     * @return bool
      * @throws Exception
      */
     public function doMassOperations(
@@ -213,16 +269,47 @@ class IntervalsRepository
         array $createRequests = [],
         array $deleteRequests = []
     ) {
-        $this->dbConnection->getConnection()->beginTransaction();
+        $this->beginTransaction();
         try {
             $this->deleteAll($deleteRequests);
             $this->updateAll($updateRequests);
             $this->createAll($createRequests);
+            $this->commitTransaction();
         } catch (Exception $e) {
-            $this->dbConnection->getConnection()->rollBack();
+            $this->rollBackTransaction();
             throw $e;
         }
-        $this->dbConnection->getConnection()->commit();
+
+        return true;
     }
 
+    /**
+     * @return bool
+     */
+    protected function beginTransaction(): bool
+    {
+        if (!$this->dbConnection->getConnection()->inTransaction()) {
+            $this->dbConnection->getConnection()->beginTransaction();
+            $this->controlTransactionFlag = true;
+        }
+
+        return $this->controlTransactionFlag;
+    }
+
+    /**
+     * @return void
+     */
+    protected function commitTransaction(): void
+    {
+        if ($this->controlTransactionFlag) {
+            $this->dbConnection->getConnection()->commit();
+        }
+    }
+
+    protected function rollBackTransaction(): void
+    {
+        if ($this->controlTransactionFlag) {
+            $this->dbConnection->getConnection()->rollBack();
+        }
+    }
 }

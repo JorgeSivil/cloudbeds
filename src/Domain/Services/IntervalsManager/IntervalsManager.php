@@ -6,57 +6,141 @@ use CloudBeds\Application\Services\Intervals\Requests\IntervalCreateRequest;
 use CloudBeds\Application\Services\Intervals\Requests\IntervalDeleteRequest;
 use CloudBeds\Application\Services\Intervals\Requests\IntervalGetRequest;
 use CloudBeds\Application\Services\Intervals\Requests\IntervalUpdateRequest;
+use CloudBeds\Application\Services\Response\Interfaces\InternalApiResponseInterface;
+use CloudBeds\Application\Services\Response\ResponseFactory;
+use CloudBeds\Application\Services\Service;
 use CloudBeds\Domain\Entities\Interval;
 use CloudBeds\Domain\Repositories\IntervalsRepository;
 use DateTime;
 use Exception;
 
-class IntervalsManager
+class IntervalsManager extends Service
 {
     protected $intervalsRepository;
-    protected $secondsToleranceToMerge = 60;
+    protected $secondsDiffTolerance = 60;
 
-    public function __construct(IntervalsRepository $intervalsRepository)
+    /**
+     * IntervalsManager constructor.
+     * @param IntervalsRepository $intervalsRepository
+     * @param ResponseFactory $responseFactory
+     */
+    public function __construct(IntervalsRepository $intervalsRepository, ResponseFactory $responseFactory)
     {
         $this->intervalsRepository = $intervalsRepository;
+        parent::__construct($responseFactory);
     }
 
+    /**
+     * @param IntervalGetRequest $request
+     * @return InternalApiResponseInterface
+     * @throws Exception
+     */
     public function get(IntervalGetRequest $request)
     {
+        $interval = $this->intervalsRepository->getByPk($request->getFrom(), $request->getTo());
+        if ($interval) {
+            return $this->success('Interval successfully fetched.', ['interval' => $interval]);
+        }
+
+        return $this->error('Not found.', [], ['No interval found matching given dates.']);
+    }
+
+    /**
+     * @param IntervalGetRequest $request
+     * @return InternalApiResponseInterface
+     * @throws Exception
+     */
+    public function getAllInTimeRange(IntervalGetRequest $request)
+    {
+        $intervals = $this->intervalsRepository->getAllInTimeRange($request->getFrom(), $request->getTo(), false);
+        if ($intervals) {
+            return $this->success('Intervals successfully fetched.', ['intervals' => $intervals]);
+        }
+
+        return $this->error('Not found.', [], ['No intervals found matching given dates.']);
+    }
+
+    /**
+     * @param IntervalUpdateRequest $request
+     * @return InternalApiResponseInterface
+     * @throws Exception
+     */
+    public function update(IntervalUpdateRequest $request)
+    {
+        /** @var Interval[] $intervals */
+        $intervals = $this->getAllIntervalsWithinTimeDifferenceTolerance(
+            $request->getNewFrom(),
+            $request->getNewTo(),
+            $this->secondsDiffTolerance
+        );
+
+        if (count($intervals) === 1) {
+            $this->intervalsRepository->update(
+                $request->getFrom(),
+                $request->getTo(),
+                $request->getNewFrom(),
+                $request->getNewTo(),
+                $request->getPrice()
+            );
+
+            return $this->success('Interval successfully updated.');
+        }
+
+        $createRequest = new IntervalCreateRequest($request->getNewFrom(), $request->getNewTo(), $request->getPrice());
+        $response = $this->create($createRequest);
+
+        return $response
+            ? $this->success('Interval successfully updated.')
+            : $this->error('Failure trying to update interval.', [], $response->getErrors());
     }
 
     /**
      * @param IntervalCreateRequest $request
-     * @return Interval
+     * @return InternalApiResponseInterface
      * @throws Exception
      */
-    public function create(IntervalCreateRequest $request): Interval
+    public function create(IntervalCreateRequest $request): InternalApiResponseInterface
     {
-        $searchDatetimeFrom = new DateTime($request->getFrom()->format(DATE_ATOM));
-        $searchDatetimeTo = new DateTime($request->getTo()->format(DATE_ATOM));
         /** @var Interval[] $intervals */
-        // This allows us to merge intervals properly
-        $intervals = $this->intervalsRepository->getAllInTimeRange(
-            $searchDatetimeFrom->modify(sprintf('-%d seconds', $this->secondsToleranceToMerge)),
-            $searchDatetimeTo->modify(sprintf('+%d seconds', $this->secondsToleranceToMerge))
+        $intervals = $this->getAllIntervalsWithinTimeDifferenceTolerance(
+            $request->getFrom(),
+            $request->getTo(),
+            $this->secondsDiffTolerance
         );
 
         $deleteRequests = [];
         $updateRequests = [];
         $createRequests = [];
 
+        $shouldCreate = true;
+        $updatedCoveredInterval = false;
         foreach ($intervals as $interval) {
-            // Existing interval is completely covered by new interval.
-            if ($interval->getFrom() > $request->getFrom() && $interval->getTo() > $request->getTo()) {
-                $deleteRequests[] = new IntervalDeleteRequest($interval->getFrom(), $interval->getTo());
+            // Existing interval is completely covered by new interval. Existing can be updated to match new interval.
+            if ($interval->getFrom() >= $request->getFrom()
+                && $interval->getTo() <= $request->getTo()
+            ) {
+                if ($updatedCoveredInterval) { // An interval was already selected to be updated to cover new interval.
+                    $deleteRequests[] = new IntervalDeleteRequest($interval->getFrom(), $interval->getTo());
+                } else {
+                    $updateRequests[] = new IntervalUpdateRequest(
+                        $interval->getFrom(),
+                        $interval->getTo(),
+                        $request->getFrom(),
+                        $request->getTo(),
+                        $request->getPrice()
+                    );
+                    $updatedCoveredInterval = true;
+                }
+                $shouldCreate = false;
                 continue;
             }
 
-            // New interval is completely covered by existing interval.
+            // New interval is completely covered by existing interval with same price. Do nothing.
             if ($interval->getFrom() <= $request->getFrom()
                 && $interval->getTo() >= $request->getTo()
                 && $interval->getPrice() === $request->getPrice()
             ) {
+                $shouldCreate = false;
                 continue;
             }
 
@@ -72,11 +156,12 @@ class IntervalsManager
                     $request->getTo(),
                     $request->getPrice()
                 );
+                $shouldCreate = false;
                 continue;
             }
 
-            // Existing interval overlaps new interval by right. Change only existing DateTime To.
-            if ($interval->getTo() >= $request->getFrom()) {
+            // Existing interval overlaps new interval by new interval's left. Change only existing DateTime To.
+            if ($interval->getFrom() <= $request->getFrom() && $interval->getTo() >= $request->getFrom()) {
                 $newTo = clone $request->getFrom();
                 $updateRequests[] = new IntervalUpdateRequest(
                     $interval->getFrom(),
@@ -88,34 +173,43 @@ class IntervalsManager
                 continue;
             }
 
-            // Existing interval overlaps new interval by left. Change only existing DateTime From.
-            if ($interval->getFrom() <= $request->getTo()) {
+            // Existing interval overlaps new interval by new interval's right. Change only existing DateTime From.
+            if ($interval->getFrom() <= $request->getTo() && $interval->getTo() >= $request->getTo()) {
                 $newFrom = clone $request->getTo();
-                $intervalsToUpdate[] = new IntervalUpdateRequest(
+                $updateRequests[] = new IntervalUpdateRequest(
                     $interval->getFrom(),
                     $interval->getTo(),
                     $newFrom->modify('+1 second'),
-                    $request->getTo(),
+                    $interval->getTo(),
                     $interval->getPrice()
                 );
                 continue;
             }
+        }
 
-            // Default case
+        // Default case
+        if ($shouldCreate) {
             $createRequests[] = $request;
         }
 
         // All intervals are now continuous, if any. We still have to merge them.
-
         $operations = $this->mergeContinuousIntervals($updateRequests, $createRequests, $deleteRequests);
 
         try {
-            $interval = $this->intervalsRepository->create($request->getFrom(), $request->getTo(), $request->getPrice());
+            $this->intervalsRepository->doMassOperations(
+                $operations['updateRequests'],
+                $operations['createRequests'],
+                $operations['deleteRequests']
+            );
         } catch (Exception $e) {
-
+            return $this->error(
+                'Failure trying to create new interval.',
+                [],
+                [$e->getMessage()]
+            );
         }
 
-        return $interval;
+        return $this->success('New interval successfully created.');
     }
 
     /**
@@ -146,7 +240,7 @@ class IntervalsManager
                     $secondsDifference = abs(
                         $request1->getNewTo()->getTimestamp() - $request2->getNewFrom()->getTimestamp()
                     );
-                    if ($secondsDifference <= $this->secondsToleranceToMerge) {
+                    if ($secondsDifference <= $this->secondsDiffTolerance) {
                         $updateRequests[$i] = new IntervalUpdateRequest(
                             $request1->getFrom(),
                             $request1->getTo(),
@@ -173,7 +267,7 @@ class IntervalsManager
                     $secondsDifference = abs(
                         $request1->getNewTo()->getTimestamp() - $request2->getFrom()->getTimestamp()
                     );
-                    if ($secondsDifference <= $this->secondsToleranceToMerge) {
+                    if ($secondsDifference <= $this->secondsDiffTolerance) {
                         $updateRequests[$i] = new IntervalUpdateRequest(
                             $request1->getFrom(),
                             $request1->getTo(),
@@ -188,7 +282,7 @@ class IntervalsManager
                     $secondsDifference = abs(
                         $request1->getNewFrom()->getTimestamp() - $request2->getTo()->getTimestamp()
                     );
-                    if ($secondsDifference <= $this->secondsToleranceToMerge) {
+                    if ($secondsDifference <= $this->secondsDiffTolerance) {
                         $updateRequests[$i] = new IntervalUpdateRequest(
                             $request1->getFrom(),
                             $request1->getTo(),
@@ -206,14 +300,41 @@ class IntervalsManager
         if ($merged) {
             return $this->mergeContinuousIntervals($updateRequests, $createRequests, $deleteRequests);
         }
+
         return $ret;
     }
 
-    public function update(IntervalUpdateRequest $request)
-    {
+    /**
+     * @param DateTime $from
+     * @param DateTime $to
+     * @param $secondsDiffTolerance
+     * @return Interval[]
+     * @throws Exception
+     */
+    protected function getAllIntervalsWithinTimeDifferenceTolerance(
+        DateTime $from,
+        DateTime $to,
+        $secondsDiffTolerance
+    ) {
+        $searchDatetimeFrom = clone $from;
+        $searchDatetimeTo = clone $to;
+        /** @var Interval[] $intervals */
+        // This allows us to merge intervals properly
+        return $this->intervalsRepository->getAllInTimeRange(
+            $searchDatetimeFrom->modify(sprintf('-%d seconds', $secondsDiffTolerance)),
+            $searchDatetimeTo->modify(sprintf('+%d seconds', $secondsDiffTolerance)),
+            false
+        );
     }
 
-    public function delete(IntervalDeleteRequest $request)
+    /**
+     * @throws Exception
+     */
+    public function getAll()
     {
+        return $this->success(
+            'All intervals successfully fetched.',
+            ['intervals' => $this->intervalsRepository->getAll()]
+        );
     }
 }

@@ -18,9 +18,15 @@ class MySql
      */
     protected $config;
 
+    /**
+     * MySql constructor.
+     * @param Config $config
+     * @throws Exception
+     */
     public function __construct(Config $config)
     {
         $this->config = $config;
+        $this->checkRequiredConfigsOrFail($config);
     }
 
     /**
@@ -49,19 +55,18 @@ class MySql
 
     /**
      * @param Config $config
-     * @return bool
+     * @return void
      * @throws Exception
      */
     protected function checkRequiredConfigsOrFail(Config $config): void
     {
-        if ($config->has('db.username')
+        if (!($config->has('db.username')
             && $config->has('db.password')
             && $config->has('db.host')
             && $config->has('db.name')
             && $config->has('db.charset')
-        ) {
-            return;
+        )) {
+            throw new Exception('Missing required database configs.');
         }
-        throw new Exception('Missing required database configs.');
     }
 }
