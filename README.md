@@ -11,8 +11,6 @@ To run tests:
 
 `docker-compose exec php-fpm /bin/bash`
 
-`cd /app`
-
 `php /app/vendor/phpunit/phpunit/phpunit --configuration /app/phpunit.xml`
 
 To clear the database:
