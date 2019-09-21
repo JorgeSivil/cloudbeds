@@ -18,6 +18,8 @@ services:
         build: docker/nginx
         container_name: cloudbeds-webserver
         working_dir: /app
+        volumes:
+            - .:/app
         ports:
             - "8080:80"
         depends_on:

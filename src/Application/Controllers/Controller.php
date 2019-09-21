@@ -18,7 +18,7 @@ class Controller
         $content = $this->loadViewfile($fileName, $data);
         $data['content'] = $content;
 
-        $fileName = $this->getViewFilename('MainTheme');
+        $fileName = $this->getViewFilename('Layout');
         return $this->loadViewfile($fileName, $data);
     }
 

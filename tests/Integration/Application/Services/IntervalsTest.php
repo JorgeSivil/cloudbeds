@@ -15,92 +15,6 @@ use Tests\IntegrationTestCase;
 class IntervalsTest extends IntegrationTestCase
 {
     /**
-     *
-     */
-    public function testExistingIntervalIsUpdatedSuccessfully()
-    {
-        /** @var Intervals $service */
-        $service = $this->app->getContainer()->get(Intervals::class);
-        $intervalCreateRequest = new IntervalCreateRequest(
-            $from = new DateTime('2019-09-19 15:00:00'),
-            $to = new DateTime('2019-09-19 15:30:00'),
-            $price = '200.40'
-        );
-        $service->create($intervalCreateRequest);
-
-        $intervalUpdateRequest = new IntervalUpdateRequest(
-            $from,
-            $to,
-            $newFrom = new DateTime('2019-09-19 15:00:00'),
-            $newTo = new DateTime('2019-09-19 16:00:00'),
-            $price = '250'
-        );
-        $service->update($intervalUpdateRequest);
-
-        // Get original interval
-        $intervalGetRequest = new IntervalGetRequest($from, $to);
-        $response = $service->get($intervalGetRequest);
-
-        // Get updated interval
-        $intervalGetRequest = new IntervalGetRequest($newFrom, $newTo);
-        $response2 = $service->get($intervalGetRequest);
-
-        /** @var Interval $interval */
-        $interval = $response2->getData()['interval'];
-
-        $this->assertFalse($response->getSuccess());
-        $this->assertTrue($response2->getSuccess());
-        $this->assertEquals($newFrom, $interval->getFrom());
-        $this->assertEquals($newTo, $interval->getTo());
-        $this->assertEquals($price . '.00', $interval->getPrice());
-    }
-
-    /**
-     * Test that existing interval update request that overlaps another interval also updates the overlapped interval.
-     * e.g. xxxyyy => xxxxx => results in xxxxxy
-     */
-    public function testExistingIntervalsAreUpdatedSuccessfullyWhenUpdateOverlaps()
-    {
-        /** @var Intervals $service */
-        $service = $this->app->getContainer()->get(Intervals::class);
-        $intervalCreateRequest = new IntervalCreateRequest(
-            $from = new DateTime('2019-09-19 15:00:00'),
-            $to = new DateTime('2019-09-19 15:30:00'),
-            $price = '200.00'
-        );
-        $intervalCreateRequest2 = new IntervalCreateRequest(
-            $from2 = new DateTime('2019-09-19 15:31:00'),
-            $to2 = new DateTime('2019-09-19 16:00:00'),
-            $price2 = '250.00'
-        );
-        $service->create($intervalCreateRequest);
-        $service->create($intervalCreateRequest2);
-
-        $intervalUpdateRequest = new IntervalUpdateRequest(
-            $from,
-            $to,
-            $newFrom = new DateTime('2019-09-19 15:00:00'),
-            $newTo = new DateTime('2019-09-19 15:45:00'),
-            $price = '200.00'
-        );
-        $service->update($intervalUpdateRequest);
-
-        $response = $service->getAllInTimeRange(new IntervalGetRequest($from, $to2));
-        $this->assertTrue($response->getSuccess());
-
-        /** @var Interval[] $intervals */
-        $intervals = $response->getData()['intervals'];
-
-        $this->assertEquals(2, count($intervals));
-        $this->assertEquals($from, $intervals[0]->getFrom());
-        $this->assertEquals($newTo, $intervals[0]->getTo());
-        $this->assertEquals($price, $intervals[0]->getPrice());
-        $this->assertEquals($newTo->modify('+1 second'), $intervals[1]->getFrom());
-        $this->assertEquals($to2, $intervals[1]->getTo());
-        $this->assertEquals($price2, $intervals[1]->getPrice());
-    }
-
-    /**
      * @dataProvider creationTestDataProvider
      * @param Interval $intervalToCreate
      * @param Interval[] $existingIntervalsSetup
@@ -125,6 +39,29 @@ class IntervalsTest extends IntegrationTestCase
                 $intervalToCreate->getPrice()
             )
         );
+        $resultingIntervals = $service->getAll()->getData()['intervals'];
+        $this->assertEquals($expectedIntervals, $resultingIntervals);
+    }
+
+    /**
+     * @dataProvider updateTestDataProvider
+     * @param IntervalUpdateRequest $intervalUpdateRequest
+     * @param Interval[] $existingIntervalsSetup
+     * @param array $expectedIntervals
+     */
+    public function testIntervalUpdate(
+        IntervalUpdateRequest $intervalUpdateRequest,
+        array $existingIntervalsSetup,
+        array $expectedIntervals
+    ) {
+        /** @var Intervals $service */
+        $service = $this->app->getContainer()->get(Intervals::class);
+        foreach ($existingIntervalsSetup as $interval) {
+            $service->create(
+                new IntervalCreateRequest($interval->getFrom(), $interval->getTo(), $interval->getPrice())
+            );
+        }
+        $service->update($intervalUpdateRequest);
         $resultingIntervals = $service->getAll()->getData()['intervals'];
         $this->assertEquals($expectedIntervals, $resultingIntervals);
     }
@@ -402,6 +339,151 @@ class IntervalsTest extends IntegrationTestCase
                 [
                     new Interval($from, $to, '300.00'),
                     new Interval(new DateTime('2019-09-19 16:00:01'), new DateTime('2019-09-19 17:00:00'), '200.00')
+                ]
+            ]
+        ];
+    }
+
+    public function updateTestDataProvider()
+    {
+        return [
+            'Interval is updated' => [
+                new IntervalUpdateRequest(
+                    $from = new DateTime('2019-09-19 15:00:00'),
+                    $to = new DateTime('2019-09-19 15:30:00'),
+                    $newFrom = new DateTime('2019-09-19 15:30:00'),
+                    $newTo = new DateTime('2019-09-19 15:40:00'),
+                    $price = '200.00'
+                ),
+                [
+                    new Interval(new DateTime('2019-09-19 15:00:00'), new DateTime('2019-09-19 15:30:00'), '300.00')
+                ],
+                [
+                    new Interval($newFrom, $newTo, $price)
+                ]
+            ],
+            'Interval is updated #2' => [
+                new IntervalUpdateRequest(
+                    $from = new DateTime('2019-09-19 15:00:00'),
+                    $to = new DateTime('2019-09-19 15:30:00'),
+                    $newFrom = new DateTime('2019-09-19 15:00:00'),
+                    $newTo = new DateTime('2019-09-19 15:50:00'),
+                    $price = '200.00'
+                ),
+                [
+                    new Interval(new DateTime('2019-09-19 15:00:00'), new DateTime('2019-09-19 15:30:00'), '300.00')
+                ],
+                [
+                    new Interval($newFrom, $newTo, $price)
+                ]
+            ],
+            /**
+             * Test that xxxxxyyyyy turns into xxxxxxxyyy
+             *           xxxxxxx
+             */
+            'Interval is updated and overlaps another interval #1' => [
+                new IntervalUpdateRequest(
+                    $from = new DateTime('2019-09-19 15:00:00'),
+                    $to = new DateTime('2019-09-19 15:30:00'),
+                    $newFrom = new DateTime('2019-09-19 15:00:00'),
+                    $newTo = new DateTime('2019-09-19 15:45:00'),
+                    $price = '300.00'
+                ),
+                [
+                    new Interval(new DateTime('2019-09-19 15:00:00'), new DateTime('2019-09-19 15:30:00'), '300.00'),
+                    new Interval(new DateTime('2019-09-19 15:30:01'), new DateTime('2019-09-19 16:00:00'), '200.00')
+                ],
+                [
+                    new Interval($newFrom, $newTo, $price),
+                    new Interval(new DateTime('2019-09-19 15:45:01'), new DateTime('2019-09-19 16:00:00'), '200.00')
+                ]
+            ],
+            /**
+             * Test that xxxxxyyyyy turns into xxxxxxxxxx
+             *           xxxxxxxxxx
+             */
+            'Interval is updated and overlaps another interval #2' => [
+                new IntervalUpdateRequest(
+                    $from = new DateTime('2019-09-19 15:00:00'),
+                    $to = new DateTime('2019-09-19 15:30:00'),
+                    $newFrom = new DateTime('2019-09-19 15:00:00'),
+                    $newTo = new DateTime('2019-09-19 16:00:00'),
+                    $price = '300.00'
+                ),
+                [
+                    new Interval(new DateTime('2019-09-19 15:00:00'), new DateTime('2019-09-19 15:30:00'), '300.00'),
+                    new Interval(new DateTime('2019-09-19 15:30:01'), new DateTime('2019-09-19 16:00:00'), '200.00')
+                ],
+                [
+                    new Interval($newFrom, $newTo, $price),
+                ]
+            ],
+            /**
+             * Test that xxxxxyyyyyzzzz turns into xxxxxxxxxxzz
+             *           xxxxxxxxxxxx
+             */
+            'Interval is updated and overlaps another interval #3' => [
+                new IntervalUpdateRequest(
+                    $from = new DateTime('2019-09-19 15:00:00'),
+                    $to = new DateTime('2019-09-19 15:30:00'),
+                    $newFrom = new DateTime('2019-09-19 15:00:00'),
+                    $newTo = new DateTime('2019-09-19 16:15:00'),
+                    $price = '300.00'
+                ),
+                [
+                    new Interval(new DateTime('2019-09-19 15:00:00'), new DateTime('2019-09-19 15:30:00'), '300.00'),
+                    new Interval(new DateTime('2019-09-19 15:30:01'), new DateTime('2019-09-19 16:00:00'), '200.00'),
+                    new Interval(new DateTime('2019-09-19 16:00:01'), new DateTime('2019-09-19 16:30:00'), '100.00')
+                ],
+                [
+                    new Interval($newFrom, $newTo, $price),
+                    new Interval(new DateTime('2019-09-19 16:15:01'), new DateTime('2019-09-19 16:30:00'), '100.00')
+                ]
+            ],
+            /**
+             * Test that vvvvxxxxxyyyyyzzzz turns into vvxxxxxxxxxxzzz
+             *             xxxxxxxxxxxxx
+             */
+            'Interval is updated and overlaps another interval #4' => [
+                new IntervalUpdateRequest(
+                    $from = new DateTime('2019-09-19 15:00:00'),
+                    $to = new DateTime('2019-09-19 15:30:00'),
+                    $newFrom = new DateTime('2019-09-19 14:45:00'),
+                    $newTo = new DateTime('2019-09-19 16:15:00'),
+                    $price = '300.00'
+                ),
+                [
+                    new Interval(new DateTime('2019-09-19 14:30:00'), new DateTime('2019-09-19 14:59:59'), '400.00'),
+                    new Interval(new DateTime('2019-09-19 15:00:00'), new DateTime('2019-09-19 15:30:00'), '300.00'),
+                    new Interval(new DateTime('2019-09-19 15:30:01'), new DateTime('2019-09-19 16:00:00'), '200.00'),
+                    new Interval(new DateTime('2019-09-19 16:00:01'), new DateTime('2019-09-19 16:30:00'), '100.00')
+                ],
+                [
+                    new Interval(new DateTime('2019-09-19 14:30:00'), new DateTime('2019-09-19 14:44:59'), '400.00'),
+                    new Interval($newFrom, $newTo, $price),
+                    new Interval(new DateTime('2019-09-19 16:15:01'), new DateTime('2019-09-19 16:30:00'), '100.00')
+                ]
+            ],
+            /**
+             * Test that vvvvxxxxxyyyyyzzzz turns into xxxxxxxxxxxxxxx as now x has the same prices as v and z
+             *             xxxxxxxxxxxxx
+             */
+            'Interval is updated and overlaps another interval #5' => [
+                new IntervalUpdateRequest(
+                    $from = new DateTime('2019-09-19 15:00:00'),
+                    $to = new DateTime('2019-09-19 15:30:00'),
+                    $newFrom = new DateTime('2019-09-19 14:45:00'),
+                    $newTo = new DateTime('2019-09-19 16:15:00'),
+                    $price = '400.00'
+                ),
+                [
+                    new Interval(new DateTime('2019-09-19 14:30:00'), new DateTime('2019-09-19 14:59:59'), '400.00'),
+                    new Interval(new DateTime('2019-09-19 15:00:00'), new DateTime('2019-09-19 15:30:00'), '300.00'),
+                    new Interval(new DateTime('2019-09-19 15:30:01'), new DateTime('2019-09-19 16:00:00'), '200.00'),
+                    new Interval(new DateTime('2019-09-19 16:00:01'), new DateTime('2019-09-19 16:30:00'), '400.00')
+                ],
+                [
+                    new Interval(new DateTime('2019-09-19 14:30:00'), new DateTime('2019-09-19 16:30:00'), $price),
                 ]
             ]
         ];
