@@ -19,6 +19,6 @@ To clear the database:
 
 `docker-compose stop`
  
-`rm .fr mysql-storage/*`
+`rm -fr mysql-storage/*`
 
 `./deploy.sh`
