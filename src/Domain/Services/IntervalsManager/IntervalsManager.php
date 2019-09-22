@@ -74,7 +74,17 @@ class IntervalsManager extends Service
             $this->secondsDiffTolerance
         );
 
-        if (count($intervals) === 1) {
+        $intervalsFound = count($intervals);
+
+        $isSameInterval = false;
+        if ($intervalsFound === 1) {
+            /** @var Interval $interval */
+            $interval = $intervals[0];
+            if ($interval->getFrom() == $request->getFrom() && $interval->getTo() == $request->getTo()) {
+                $isSameInterval = true;
+            }
+        }
+        if ($intervalsFound === 0 || $isSameInterval) {
             $this->intervalsRepository->update(
                 $request->getFrom(),
                 $request->getTo(),
@@ -85,6 +95,11 @@ class IntervalsManager extends Service
 
             return $this->success('Interval successfully updated.');
         }
+
+        // Cover the case were an interval is moved and now collides with existing intervals.
+        // TODO: Re-write logic for Update not using Create.
+        $deleteRequest = new IntervalDeleteRequest($request->getFrom(), $request->getTo());
+        $this->delete(($deleteRequest));
 
         $createRequest = new IntervalCreateRequest($request->getNewFrom(), $request->getNewTo(), $request->getPrice());
         $response = $this->create($createRequest);
@@ -185,6 +200,14 @@ class IntervalsManager extends Service
                 );
                 continue;
             }
+
+            $updateRequests[] = new IntervalUpdateRequest(
+                $interval->getFrom(),
+                $interval->getTo(),
+                $interval->getFrom(),
+                $interval->getTo(),
+                $interval->getPrice()
+            );
         }
 
         // Default case
@@ -236,7 +259,7 @@ class IntervalsManager extends Service
             $request1 = $updateRequests[$i];
             for ($j = $i + 1; $j < sizeof($updateRequests); $j++) {
                 $request2 = $updateRequests[$j];
-                if ($request1->getPrice() === $request2->getPrice()) {
+                if ($request1->getPrice() == $request2->getPrice()) {
                     $secondsDifference = abs(
                         $request1->getNewTo()->getTimestamp() - $request2->getNewFrom()->getTimestamp()
                     );
@@ -263,7 +286,7 @@ class IntervalsManager extends Service
             $request1 = $updateRequests[$i];
             for ($j = 0; $j < sizeof($createRequests); $j++) {
                 $request2 = $createRequests[$j];
-                if ($request1->getPrice() === $request2->getPrice()) {
+                if ($request1->getPrice() == $request2->getPrice()) {
                     $secondsDifference = abs(
                         $request1->getNewTo()->getTimestamp() - $request2->getFrom()->getTimestamp()
                     );

@@ -323,6 +323,25 @@ class IntervalsTest extends IntegrationTestCase
                 ]
             ],
             /*
+            * Test that xxxxyyyy turns into xxxxzzzzz when creating z.
+            *               zzzzz
+            */
+            'Interval covers an existing interval #13 (integer price)' => [
+                new Interval(
+                    $from = new DateTime('2019-09-19 16:00:01'),
+                    $to = new DateTime('2019-09-19 17:30:00'),
+                    $price = '300'
+                ),
+                [
+                    new Interval(new DateTime('2019-09-19 15:00:00'), new DateTime('2019-09-19 16:00:00'), '250.00'),
+                    new Interval(new DateTime('2019-09-19 16:00:01'), new DateTime('2019-09-19 17:00:00'), '200.00')
+                ],
+                [
+                    new Interval(new DateTime('2019-09-19 15:00:00'), new DateTime('2019-09-19 16:00:00'), '250.00'),
+                    new Interval($from, $to, '300.00'),
+                ]
+            ],
+            /*
             * Test that xxxxyyyy turns into zzzzzyyyy when creating z.
             *          zzzzz
             */
@@ -484,6 +503,86 @@ class IntervalsTest extends IntegrationTestCase
                 ],
                 [
                     new Interval(new DateTime('2019-09-19 14:30:00'), new DateTime('2019-09-19 16:30:00'), $price),
+                ]
+            ],
+            /**
+             * Test that xxxxzzzz turns into xxxxzzzz as now x and z have the same price.
+             *           xxxx
+             */
+            'Interval is updated price and can be merged' => [
+                new IntervalUpdateRequest(
+                    $from = new DateTime('2019-09-19 15:00:00'),
+                    $to = new DateTime('2019-09-19 15:30:00'),
+                    $newFrom = new DateTime('2019-09-19 15:00:00'),
+                    $newTo = new DateTime('2019-09-19 15:30:00'),
+                    $price = '300.00'
+                ),
+                [
+                    new Interval(new DateTime('2019-09-19 14:30:00'), new DateTime('2019-09-19 14:59:00'), '300.00'),
+                    new Interval(new DateTime('2019-09-19 15:00:00'), new DateTime('2019-09-19 15:30:00'), '400.00'),
+                ],
+                [
+                    new Interval(new DateTime('2019-09-19 14:30:00'), new DateTime('2019-09-19 15:30:00'), $price),
+                ]
+            ],
+            /**
+             * Test that xxxxzzzz turns into xxxxzzzz as now x and z have the same price. (price is not decimal)
+             *           xxxx
+             */
+            'Interval is updated price and can be merged #2' => [
+                new IntervalUpdateRequest(
+                    $from = new DateTime('2019-09-19 15:00:00'),
+                    $to = new DateTime('2019-09-19 15:30:00'),
+                    $newFrom = new DateTime('2019-09-19 15:00:00'),
+                    $newTo = new DateTime('2019-09-19 15:30:00'),
+                    $price = '300'
+                ),
+                [
+                    new Interval(new DateTime('2019-09-19 14:30:00'), new DateTime('2019-09-19 14:59:00'), '300.00'),
+                    new Interval(new DateTime('2019-09-19 15:00:00'), new DateTime('2019-09-19 15:30:00'), '400.00'),
+                ],
+                [
+                    new Interval(new DateTime('2019-09-19 14:30:00'), new DateTime('2019-09-19 15:30:00'), '300.00'),
+                ]
+            ],
+            /**
+             * Test that xxxx        turns into xxxx
+             *                 xxxx
+             */
+            'Interval is updated to another date that does not have any intervals' => [
+                new IntervalUpdateRequest(
+                    $from = new DateTime('2019-09-19 15:00:00'),
+                    $to = new DateTime('2019-09-19 15:30:00'),
+                    $newFrom = new DateTime('2019-09-19 16:00:00'),
+                    $newTo = new DateTime('2019-09-19 16:30:00'),
+                    $price = '300'
+                ),
+                [
+                    new Interval(new DateTime('2019-09-19 15:00:00'), new DateTime('2019-09-19 15:30:00'), '400.00'),
+                ],
+                [
+                    new Interval(new DateTime('2019-09-19 16:00:00'), new DateTime('2019-09-19 16:30:00'), '300.00'),
+                ]
+            ],
+            /**
+             * Test that xxxx   yyyy  turns into xxxxyy
+             *                xxxx
+             */
+            'Interval is updated to another date and collides with another interval' => [
+                new IntervalUpdateRequest(
+                    $from = new DateTime('2019-09-20 16:00:00'),
+                    $to = new DateTime('2019-09-20 17:00:00'),
+                    $newFrom = new DateTime('2019-09-19 16:00:00'),
+                    $newTo = new DateTime('2019-09-19 17:00:00'),
+                    $price = '300'
+                ),
+                [
+                    new Interval(new DateTime('2019-09-19 15:00:00'), new DateTime('2019-09-19 17:00:00'), '400.00'),
+                    new Interval(new DateTime('2019-09-20 16:00:00'), new DateTime('2019-09-20 17:00:00'), '300.00'),
+                ],
+                [
+                    new Interval(new DateTime('2019-09-19 15:00:00'), new DateTime('2019-09-19 15:59:59'), '400.00'),
+                    new Interval(new DateTime('2019-09-19 16:00:00'), new DateTime('2019-09-19 17:00:00'), '300.00'),
                 ]
             ]
         ];

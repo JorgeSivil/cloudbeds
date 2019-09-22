@@ -36,6 +36,9 @@ class Router
         if ($verb !== 'get') {
             $this->currentAction .= '_' . $verb;
         }
+        if ('put' === $verb) {
+            parse_str(file_get_contents('php://input'), $_REQUEST);
+        }
         $this->currentControllerInstance = $this->getController($controllerName);
     }
 

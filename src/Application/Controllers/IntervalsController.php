@@ -8,6 +8,7 @@ use CloudBeds\Application\Services\Intervals\Intervals;
 use CloudBeds\Application\Services\Intervals\Requests\IntervalCreateRequest;
 use CloudBeds\Application\Services\Intervals\Requests\IntervalDeleteRequest;
 use CloudBeds\Application\Services\Intervals\Requests\IntervalGetRequest;
+use CloudBeds\Application\Services\Intervals\Requests\IntervalUpdateRequest;
 use CloudBeds\Application\Services\Response\HttpResponse;
 use CloudBeds\Domain\Entities\Interval;
 use DateTime;
@@ -45,7 +46,7 @@ class IntervalsController extends Controller
         $intervalsList = [];
         $response = null;
         try {
-            $dateRange = $this->parseDatesFromRequest();
+            $dateRange = $this->parseDatesFromRequest(['from', 'to']);
         } catch (Exception $e) {
             return $this->apiError(
                 'Invalid dates specified.',
@@ -70,9 +71,59 @@ class IntervalsController extends Controller
         return $this->apiSuccess('All intervals fetched successfully.', ['intervals' => $intervalsList]);
     }
 
-    public function indexAction_delete() {
+    public function indexAction_put()
+    {
         try {
-            $dateRange = $this->parseDatesFromRequest();
+            $dateRange = $this->parseDatesFromRequest(['from', 'to', 'newFrom', 'newTo']);
+        } catch (Exception $e) {
+            return $this->apiError(
+                'Invalid dates specified.',
+                [$e->getMessage()],
+                400
+            );
+        }
+
+        $errors = [];
+        if (!isset($dateRange['from'])) {
+            $errors[] = 'Parameter \'from\' is required.';
+        }
+        if (!isset($dateRange['to'])) {
+            $errors[] = 'Parameter \'to\' is required.';
+        }
+        if (!isset($dateRange['newFrom'])) {
+            $errors[] = 'Parameter \'newFrom\' is required.';
+        }
+        if (!isset($dateRange['newTo'])) {
+            $errors[] = 'Parameter \'newTo\' is required.';
+        }
+
+        if ($errors) {
+            return $this->apiError(
+                'Error trying to update interval.',
+                $errors
+            );
+        }
+
+        $response = $this->intervalsService->update(
+            new IntervalUpdateRequest(
+                $dateRange['from'],
+                $dateRange['to'],
+                $dateRange['newFrom'],
+                $dateRange['newTo'],
+                $_REQUEST['price']
+            )
+        );
+        if (!$response->getSuccess()) {
+            return $this->apiError('Error trying to update interval.', $response->getErrors(), 500);
+        }
+
+        return $this->apiSuccess('Interval updated.');
+    }
+
+    public function indexAction_delete()
+    {
+        try {
+            $dateRange = $this->parseDatesFromRequest(['from', 'to']);
         } catch (Exception $e) {
             return $this->apiError(
                 'Invalid dates specified.',
@@ -113,7 +164,7 @@ class IntervalsController extends Controller
     public function indexAction_post()
     {
         try {
-            $dateRange = $this->parseDatesFromRequest();
+            $dateRange = $this->parseDatesFromRequest(['from', 'to']);
         } catch (Exception $e) {
             return $this->apiError(
                 'Invalid dates specified.',
@@ -153,31 +204,23 @@ class IntervalsController extends Controller
     }
 
     /**
+     * @param array $paramsNames
      * @return array
      * @throws Exception
      */
-    private function parseDatesFromRequest(): array
+    private function parseDatesFromRequest(array $paramsNames): array
     {
-        $from = null;
-        $to = null;
-        if (isset($_REQUEST['from']) && is_string($_REQUEST['from'])) {
-            try {
-                $from = new DateTime($_REQUEST['from']);
-            } catch (Exception $e) {
-                throw new Exception('The \'from\' parameter does not have a valid date time');
-            }
-        }
-        if (isset($_REQUEST['to']) && is_string($_REQUEST['to'])) {
-            try {
-                $to = new DateTime($_REQUEST['to']);
-            } catch (Exception $e) {
-                throw new Exception('The \'to\' parameter does not have a valid date time');
+        $ret = [];
+        foreach ($paramsNames as $name) {
+            if (isset($_REQUEST[$name]) && is_string($_REQUEST[$name])) {
+                try {
+                    $ret[$name] = new DateTime($_REQUEST[$name]);
+                } catch (Exception $e) {
+                    throw new Exception(sprintf('The \'%s\' parameter does not have a valid date time', $name));
+                }
             }
         }
 
-        return [
-            'from' => $from,
-            'to' => $to
-        ];
+        return $ret;
     }
 }

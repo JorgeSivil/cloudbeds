@@ -4,8 +4,9 @@ $(document).ready(function () {
     scheduler.config.details_on_dblclick = true;
     scheduler.config.show_quick_info = false;
     scheduler.config.icons_select = ['icon_details', 'icon_delete'];
+    scheduler.locale.labels.new_event = "New Interval";
     scheduler.config.lightbox.sections = [
-        {name: "Price", height: 50, type: "textarea", map_to: "text", focus: true},
+        {name: "Price", height: 50, type: "textarea", map_to: "text", focus: true, default_value: "100.00"},
         {name: "time", height: 72, type: "time", map_to: "auto"}
     ];
     scheduler.setLoadMode("day");
@@ -18,7 +19,7 @@ $(document).ready(function () {
             async: false,
             type: "DELETE",
             url: '/intervals?'
-                + $.param({ from: interval.start_date.toLocaleString(), to: interval.end_date.toLocaleString() }),
+                + $.param({from: interval.start_date.toLocaleString(), to: interval.end_date.toLocaleString()}),
             success: function () {
                 ret = true;
                 loadIntervals();
@@ -29,8 +30,28 @@ $(document).ready(function () {
         return ret;
     });
 
-    scheduler.attachEvent("onEventSave", function (id, interval) {
-        let ret = false;
+    scheduler.attachEvent("onBeforeEventChanged", function (interval, eventType, isNew, intervalBeforeUpdate) {
+        if (!isNew) {
+            return createOrUpdateInterval(interval, null, intervalBeforeUpdate);
+        }
+        return true;
+    });
+
+    scheduler.attachEvent("onEventSave", function (id, interval, isNew) {
+        let intervalBeforeUpdate = scheduler.getEvent(id);
+        return createOrUpdateInterval(interval, isNew, intervalBeforeUpdate);
+    });
+
+    loadIntervals();
+
+    scheduler.attachEvent("onViewChange", function () {
+        loadIntervals();
+    });
+});
+
+function createOrUpdateInterval(interval, isNew, intervalBeforeUpdate = {}) {
+    let ret = false;
+    if (isNew instanceof Date) {
         $.ajax({
             cache: false,
             async: false,
@@ -48,15 +69,30 @@ $(document).ready(function () {
             error: processAndAlertErrors,
             dataType: 'json'
         });
-        return ret;
-    });
+    } else {
+        $.ajax({
+            cache: false,
+            async: false,
+            type: "PUT",
+            url: '/intervals',
+            data: {
+                from: intervalBeforeUpdate.start_date.toLocaleString(),
+                to: intervalBeforeUpdate.end_date.toLocaleString(),
+                newFrom: interval.start_date.toLocaleString(),
+                newTo: interval.end_date.toLocaleString(),
+                price: interval.text
+            },
+            success: function () {
+                ret = true;
+                loadIntervals();
+            },
+            error: processAndAlertErrors,
+            dataType: 'json'
+        });
+    }
 
-    loadIntervals();
-
-    scheduler.attachEvent("onViewChange", function () {
-        loadIntervals();
-    });
-});
+    return ret;
+}
 
 function processAndAlertErrors(jqXHR) {
     let errors = "";

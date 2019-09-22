@@ -74,7 +74,7 @@ class Intervals
 
     /**
      * @param IntervalDeleteRequest $request
-     * @return
+     * @return InternalApiResponseInterface
      */
     public function delete(IntervalDeleteRequest $request)
     {
