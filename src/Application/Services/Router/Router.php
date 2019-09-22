@@ -2,7 +2,7 @@
 
 namespace CloudBeds\Application\Services\Router;
 
-use CloudBeds\Application\Services\Http\Response;
+use CloudBeds\Application\Services\Response\HttpResponse;
 use Psr\Container\ContainerInterface;
 
 class Router
@@ -26,9 +26,10 @@ class Router
         }
         $path = trim($path, '/');
 
-        $explodedPath = explode('/', $path);
+        $explodedPath = explode('?', $path); // Remove query string
+        $explodedPath = explode('/', $explodedPath[0]);
         $controllerName = $explodedPath[0] ? ucfirst($explodedPath[0]) : 'Main';
-        $this->currentAction = $explodedPath[1] ? lcfirst($explodedPath[1]) : 'index';
+        $this->currentAction = isset($explodedPath[1]) ? lcfirst($explodedPath[1]) : 'index';
         $this->currentAction .= 'Action';
         $this->currentControllerInstance = $this->getController($controllerName);
     }
@@ -40,6 +41,7 @@ class Router
     protected function getController(string $controllerName)
     {
         $controllerFqcn = sprintf('%s\\Application\\Controllers\\%sController', APP_NAMESPACE, $controllerName);
+
         return $this->dependencyContainer->get($controllerFqcn);
     }
 
@@ -47,12 +49,16 @@ class Router
     {
         $this->processPath($path);
         if (!method_exists($this->currentControllerInstance, $this->currentAction)) {
-            $this->fail(Response::HTTP_NOT_FOUND);
+            $this->fail(HttpResponse::HTTP_NOT_FOUND);
         }
         $response = call_user_func([$this->currentControllerInstance, $this->currentAction]);
-        if (!($response instanceof Response)) {
-            $this->fail(500, sprintf('Controller action response must be an instance of %s class', Response::class));
+        if (!($response instanceof HttpResponse)) {
+            $this->fail(
+                500,
+                sprintf('Controller action response must be an instance of %s class', HttpResponse::class)
+            );
         }
+        $this->sendHeaders($response->getHeaders());
         echo $response->getResponse();
     }
 
@@ -65,9 +71,16 @@ class Router
         die(1);
     }
 
-    protected function sendHttpCodeHeader(int $httpCode, $statusText = '')
+    protected function sendHttpCodeHeader(int $httpCode, $statusText = ''): void
     {
-        $header = sprintf('HTTP/1.1 %d %s', $httpCode, Response::$statusTexts[$httpCode] ?? $statusText);
-        header($header);
+        $header = sprintf('HTTP/1.1 %d %s', $httpCode, HttpResponse::$statusTexts[$httpCode] ?? $statusText);
+        $this->sendHeaders([$header]);
+    }
+
+    protected function sendHeaders(array $headers): void
+    {
+        foreach ($headers as $header) {
+            header($header);
+        }
     }
 }

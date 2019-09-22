@@ -38,8 +38,8 @@ class Interval implements Arrayable
     public function toArray(): array
     {
         return [
-            'date_from' => $this->from,
-            'date_to' => $this->to,
+            'from' => $this->from,
+            'to' => $this->to,
             'price' => $this->price
         ];
     }

@@ -1,0 +1,14 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+.main.container {
+    height: 100%;
+}
+
+.main.container .row {
+    height: 100%;
+}

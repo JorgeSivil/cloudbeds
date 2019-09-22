@@ -1,8 +1,8 @@
 <?php
 
-namespace CloudBeds\Application\Services\Http;
+namespace CloudBeds\Application\Services\Response;
 
-class Response
+class HttpResponse
 {
     const HTTP_CONTINUE = 100;
     const HTTP_SWITCHING_PROTOCOLS = 101;
@@ -132,13 +132,35 @@ class Response
     );
 
     /**
+     * @var array
+     */
+    protected $headers;
+
+    /**
      * @var string The response text
      */
     protected $response = '';
 
-    public function __construct(string $response)
+    public function __construct(string $response, array $headers = [])
     {
         $this->response = $response;
+        $this->headers = $headers;
+    }
+
+    /**
+     * @return array
+     */
+    public function getHeaders(): array
+    {
+        return $this->headers;
+    }
+
+    /**
+     * @param array $headers
+     */
+    public function setHeaders(array $headers): void
+    {
+        $this->headers = $headers;
     }
 
     /**

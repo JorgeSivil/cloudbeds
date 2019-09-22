@@ -9136,7 +9136,7 @@ jQuery.extend( {
 			// URL without anti-cache param
 			cacheURL,
 
-			// Response headers
+			// HttpResponse headers
 			responseHeadersString,
 			responseHeaders,
 

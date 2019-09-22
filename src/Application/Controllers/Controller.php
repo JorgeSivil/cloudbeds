@@ -2,6 +2,8 @@
 
 namespace CloudBeds\Application\Controllers;
 
+use CloudBeds\Application\Services\Response\HttpResponse;
+use CloudBeds\Application\Services\Response\InternalApiResponse;
 use Exception;
 
 class Controller
@@ -19,6 +21,7 @@ class Controller
         $data['content'] = $content;
 
         $fileName = $this->getViewFilename('Layout');
+
         return $this->loadViewfile($fileName, $data);
     }
 
@@ -38,6 +41,7 @@ class Controller
         include $fileName;
         $content = ob_get_contents();
         ob_end_clean();
+
         return $content;
     }
 
@@ -45,4 +49,34 @@ class Controller
     {
         return sprintf('%s/Application/Views/%s.php', APP_SRC_ROOT, $viewName);
     }
+
+    /**
+     * @param string $message
+     * @param array $data
+     *
+     * @return HttpResponse
+     */
+    protected function apiSuccess(string $message, array $data = []): HttpResponse
+    {
+        $internalResponse = new InternalApiResponse(true, $data, $message);
+        return new HttpResponse(json_encode($internalResponse->toArray(), true), ['Content-Type: application/json']);
+    }
+
+    /**
+     * @param string $message
+     * @param array $errors
+     *
+     * @param int $httpCode
+     * @return HttpResponse
+     */
+    protected function apiError(string $message, array $errors = [], int $httpCode = 400): HttpResponse
+    {
+        $internalResponse = new InternalApiResponse(false, [], $message, $errors);
+        $headers = [
+            'Content-Type: application/json',
+            $header = sprintf('HTTP/1.1 %d %s', $httpCode, HttpResponse::$statusTexts[$httpCode])
+        ];
+        return new HttpResponse(json_encode($internalResponse->toArray(), true), $headers);
+    }
+
 }

@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace CloudBeds\Application\Controllers;
 
-use CloudBeds\Application\Services\Http\Response;
+use CloudBeds\Application\Services\Response\HttpResponse;
 use Exception;
 
 class MainController extends Controller
 {
     /**
-     * @return Response
+     * @return HttpResponse
      * @throws Exception
      */
     public function indexAction()
     {
-        return new Response($this->loadView('MainIndex'));
+        return new HttpResponse($this->loadView('MainIndex'));
     }
 }
