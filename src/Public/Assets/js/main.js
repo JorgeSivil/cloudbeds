@@ -2,9 +2,6 @@ $(document).ready(function () {
     scheduler.config.xml_date = "%Y-%m-%d %H:%i";
     scheduler.config.details_on_create = true;
     scheduler.setLoadMode("day");
-    scheduler.attachEvent("onLoadEnd", function () {
-        alert("hola");
-    });
     scheduler.init("scheduler_here", new Date(2019, 8, 20), "week");
 
     scheduler.attachEvent("onEventSave", function (id, interval) {
