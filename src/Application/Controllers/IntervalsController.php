@@ -6,6 +6,7 @@ namespace CloudBeds\Application\Controllers;
 
 use CloudBeds\Application\Services\Intervals\Intervals;
 use CloudBeds\Application\Services\Intervals\Requests\IntervalCreateRequest;
+use CloudBeds\Application\Services\Intervals\Requests\IntervalDeleteRequest;
 use CloudBeds\Application\Services\Intervals\Requests\IntervalGetRequest;
 use CloudBeds\Application\Services\Response\HttpResponse;
 use CloudBeds\Domain\Entities\Interval;
@@ -69,11 +70,47 @@ class IntervalsController extends Controller
         return $this->apiSuccess('All intervals fetched successfully.', ['intervals' => $intervalsList]);
     }
 
+    public function indexAction_delete() {
+        try {
+            $dateRange = $this->parseDatesFromRequest();
+        } catch (Exception $e) {
+            return $this->apiError(
+                'Invalid dates specified.',
+                [$e->getMessage()],
+                400
+            );
+        }
+
+        $errors = [];
+        if (!isset($dateRange['from'])) {
+            $errors[] = 'Parameter \'from\' is required.';
+        }
+        if (!isset($dateRange['to'])) {
+            $errors[] = 'Parameter \'to\' is required.';
+        }
+
+        if ($errors) {
+            return $this->apiError(
+                'Error trying to delete interval.',
+                $errors
+            );
+        }
+
+        $response = $this->intervalsService->delete(
+            new IntervalDeleteRequest($dateRange['from'], $dateRange['to'])
+        );
+        if (!$response->getSuccess()) {
+            return $this->apiError('Error trying to delete interval.', $response->getErrors(), 500);
+        }
+
+        return $this->apiSuccess('Interval deleted.');
+    }
+
     /**
      * @return HttpResponse
      * @throws Exception
      */
-    public function createAction_post()
+    public function indexAction_post()
     {
         try {
             $dateRange = $this->parseDatesFromRequest();
@@ -111,7 +148,8 @@ class IntervalsController extends Controller
         if (!$response->getSuccess()) {
             return $this->apiError('Error trying to create new interval.', $response->getErrors(), 500);
         }
-        return $this->apiSuccess('New interval created successfully.');
+
+        return $this->apiSuccess('Interval created.');
     }
 
     /**

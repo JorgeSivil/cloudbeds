@@ -135,9 +135,10 @@ class IntervalsRepository
      * @param DateTime $newFrom
      * @param DateTime $newTo
      * @param string $price
+     * @return bool
      * @throws Exception
      */
-    public function update(DateTime $from, DateTime $to, DateTime $newFrom, DateTime $newTo, string $price): void
+    public function update(DateTime $from, DateTime $to, DateTime $newFrom, DateTime $newTo, string $price): bool
     {
         $query = sprintf(
             'UPDATE `%s` SET `from` = :newFrom, `to` = :newTo, `price` = :price WHERE `from` = :from AND `to` = :to;',
@@ -151,14 +152,16 @@ class IntervalsRepository
             ':from' => $from->format(self::DATETIME_FORMAT),
             ':to' => $to->format(self::DATETIME_FORMAT),
         ]);
+        return $pst->rowCount() === 1;
     }
 
     /**
      * @param DateTime $from
      * @param DateTime $to
+     * @return bool
      * @throws Exception
      */
-    public function delete(DateTime $from, DateTime $to): void
+    public function delete(DateTime $from, DateTime $to): bool
     {
         $query = sprintf('DELETE FROM `%s` WHERE `from` = :from AND `to` = :to', $this->tableName);
         $pst = $this->dbConnection->getConnection()->prepare($query);
@@ -166,6 +169,7 @@ class IntervalsRepository
             ':from' => $from->format(self::DATETIME_FORMAT),
             ':to' => $to->format(self::DATETIME_FORMAT),
         ]);
+        return $pst->rowCount() === 1;
     }
 
     /**

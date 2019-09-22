@@ -337,4 +337,18 @@ class IntervalsManager extends Service
             ['intervals' => $this->intervalsRepository->getAll()]
         );
     }
+
+    public function delete(IntervalDeleteRequest $request)
+    {
+        $errors = [];
+        $response = false;
+        try {
+            $response = $this->intervalsRepository->delete($request->getFrom(), $request->getTo());
+        } catch (Exception $e) {
+            $errors[] = $e->getMessage();
+        }
+        return $response
+            ? $this->success('Interval successfully updated.')
+            : $this->error('Failure trying to update interval.', [], $errors);
+    }
 }
