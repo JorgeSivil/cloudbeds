@@ -5,7 +5,10 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
         <link href="/Assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
-        <link href="/Assets/main.css" rel="stylesheet">
+        <link href="/Assets/css/main.css" rel="stylesheet">
+        <script src="/Assets/jquery/jquery.min.js"></script>
+        <script src="/Assets/bootstrap/js/bootstrap.bundle.min.js"></script>
+        <script src="/Assets/js/main.js"></script>
         <script src="https://cdn.dhtmlx.com/scheduler/edge/dhtmlxscheduler.js"></script>
         <link href="https://cdn.dhtmlx.com/scheduler/edge/dhtmlxscheduler_material.css"
               rel="stylesheet" type="text/css" charset="utf-8">
@@ -23,7 +26,5 @@
             </div>
         </div>
 
-        <script src="/Assets/jquery/jquery.slim.min.js"></script>
-        <script src="/Assets/bootstrap/js/bootstrap.bundle.min.js"></script>
     </body>
 </html>

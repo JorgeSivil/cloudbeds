@@ -26,11 +26,16 @@ class Router
         }
         $path = trim($path, '/');
 
+        $verb = strtolower($_SERVER['REQUEST_METHOD']);
+
         $explodedPath = explode('?', $path); // Remove query string
         $explodedPath = explode('/', $explodedPath[0]);
         $controllerName = $explodedPath[0] ? ucfirst($explodedPath[0]) : 'Main';
         $this->currentAction = isset($explodedPath[1]) ? lcfirst($explodedPath[1]) : 'index';
         $this->currentAction .= 'Action';
+        if ($verb !== 'get') {
+            $this->currentAction .= '_' . $verb;
+        }
         $this->currentControllerInstance = $this->getController($controllerName);
     }
 

@@ -7,6 +7,13 @@ html, body {
 
 .main.container {
     height: 100%;
+    padding-bottom: 100px;
+}
+
+.dhx_cal_event:not(.dhx_cal_select_menu) .dhx_body:before {
+    content: "$";
+    float: left;
+    margin-right: 4px;
 }
 
 .main.container .row {

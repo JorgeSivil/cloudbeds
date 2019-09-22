@@ -13,12 +13,5 @@
     <div class="dhx_cal_data"></div>
 </div>
 <script>
-    scheduler.config.xml_date="%Y-%m-%d %H:%i";
-    scheduler.init("scheduler_here", new Date(2019, 8, 20), "week");
-    scheduler.setLoadMode("day");
-    scheduler.load("/intervals/all", "json");
 
-    var dp = new dataProcessor("/events");
-    dp.setTransactionMode("REST"); // use to transfer data with REST
-    dp.init(scheduler);
 </script>

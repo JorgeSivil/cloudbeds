@@ -303,6 +303,7 @@ class IntervalsRepository
     {
         if ($this->controlTransactionFlag) {
             $this->dbConnection->getConnection()->commit();
+            $this->controlTransactionFlag = false;
         }
     }
 
@@ -310,6 +311,7 @@ class IntervalsRepository
     {
         if ($this->controlTransactionFlag) {
             $this->dbConnection->getConnection()->rollBack();
+            $this->controlTransactionFlag = false;
         }
     }
 }

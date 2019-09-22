@@ -3,6 +3,7 @@
 namespace CloudBeds\Domain\Entities;
 
 use CloudBeds\Domain\Interfaces\Arrayable;
+use CloudBeds\Domain\Repositories\IntervalsRepository;
 use DateTime;
 
 class Interval implements Arrayable
@@ -38,8 +39,8 @@ class Interval implements Arrayable
     public function toArray(): array
     {
         return [
-            'from' => $this->from,
-            'to' => $this->to,
+            'from' => $this->from->format(IntervalsRepository::DATETIME_FORMAT),
+            'to' => $this->to->format(IntervalsRepository::DATETIME_FORMAT),
             'price' => $this->price
         ];
     }
