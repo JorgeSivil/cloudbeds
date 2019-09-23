@@ -96,7 +96,10 @@ class IntervalsController extends Controller
         if (!isset($dateRange['newTo'])) {
             $errors[] = 'Parameter \'newTo\' is required.';
         }
-        if (isset($_POST['price']) && !is_numeric($_POST['price'])) {
+        if (!isset($_REQUEST['price'])) {
+            $errors[] = 'Parameter \'price\' must be numeric.';
+        }
+        if (isset($_REQUEST['price']) && !is_numeric($_REQUEST['price'])) {
             $errors[] = 'Parameter \'price\' must be numeric.';
         }
 

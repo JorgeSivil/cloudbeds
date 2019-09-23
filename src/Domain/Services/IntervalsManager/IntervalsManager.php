@@ -16,6 +16,9 @@ use Exception;
 
 class IntervalsManager extends Service
 {
+    /**
+     * @var IntervalsRepository $intervalsRepository
+     */
     protected $intervalsRepository;
     protected $secondsDiffTolerance = 60;
 
