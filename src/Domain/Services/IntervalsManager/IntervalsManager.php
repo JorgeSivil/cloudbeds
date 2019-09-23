@@ -130,6 +130,10 @@ class IntervalsManager extends Service
         $shouldCreate = true;
         $updatedCoveredInterval = false;
         foreach ($intervals as $interval) {
+            // Flag to check if the interval was already updated.
+            // Maybe it needs to split in two, and issue 1 update and 1 creation.
+            $intervalAlreadyUpdated = false;
+
             // Existing interval is completely covered by new interval. Existing can be updated to match new interval.
             if ($interval->getFrom() >= $request->getFrom()
                 && $interval->getTo() <= $request->getTo()
@@ -150,12 +154,25 @@ class IntervalsManager extends Service
                 continue;
             }
 
-            // New interval is completely covered by existing interval with same price. Do nothing.
-            if ($interval->getFrom() <= $request->getFrom()
-                && $interval->getTo() >= $request->getTo()
-                && $interval->getPrice() === $request->getPrice()
+            // New interval is completely covered by existing interval.
+            if ($interval->getFrom() < $request->getFrom()
+                && $interval->getTo() > $request->getTo()
             ) {
-                $shouldCreate = false;
+                if ($interval->getPrice() !== $request->getPrice()) {
+                    // Existing interval must be split in two. We issue 1 update and 1 create.
+                    $newTo = (clone $request->getFrom())->modify('-1 second');
+                    $updateRequests[] = new IntervalUpdateRequest(
+                        $interval->getFrom(),
+                        $interval->getTo(),
+                        $interval->getFrom(),
+                        $newTo,
+                        $interval->getPrice()
+                    );
+                    $newFrom = (clone $request->getTo())->modify('+1 second');
+                    $createRequests[] = new IntervalCreateRequest($newFrom, $interval->getTo(), $interval->getPrice());
+                } else {
+                    $shouldCreate = false;  // With same price do nothing.
+                }
                 continue;
             }
 
@@ -185,7 +202,6 @@ class IntervalsManager extends Service
                     $newTo->modify('-1 second'),
                     $interval->getPrice()
                 );
-                continue;
             }
 
             // Existing interval overlaps new interval by new interval's right. Change only existing DateTime From.
@@ -370,6 +386,7 @@ class IntervalsManager extends Service
         } catch (Exception $e) {
             $errors[] = $e->getMessage();
         }
+
         return $response
             ? $this->success('Interval successfully updated.')
             : $this->error('Failure trying to update interval.', [], $errors);

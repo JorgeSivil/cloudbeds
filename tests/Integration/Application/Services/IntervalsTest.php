@@ -584,6 +584,49 @@ class IntervalsTest extends IntegrationTestCase
                     new Interval(new DateTime('2019-09-19 15:00:00'), new DateTime('2019-09-19 15:59:59'), '400.00'),
                     new Interval(new DateTime('2019-09-19 16:00:00'), new DateTime('2019-09-19 17:00:00'), '300.00'),
                 ]
+            ],
+            /**
+             * Test that xxxxxxxxxx  yyyy  turns into xxxxyyyyxxx (i.e. x is split in two).
+             *              yyyy
+             */
+            'Interval is updated to another date and collides with another interval in the middle' => [
+                new IntervalUpdateRequest(
+                    $from = new DateTime('2019-09-20 16:00:00'),
+                    $to = new DateTime('2019-09-20 17:00:00'),
+                    $newFrom = new DateTime('2019-09-19 16:00:00'),
+                    $newTo = new DateTime('2019-09-19 17:00:00'),
+                    $price = '300'
+                ),
+                [
+                    new Interval(new DateTime('2019-09-19 10:00:00'), new DateTime('2019-09-19 20:00:00'), '400.00'),
+                    new Interval(new DateTime('2019-09-20 16:00:00'), new DateTime('2019-09-20 17:00:00'), '300.00'),
+                ],
+                [
+                    new Interval(new DateTime('2019-09-19 10:00:00'), new DateTime('2019-09-19 15:59:59'), '400.00'),
+                    new Interval(new DateTime('2019-09-19 16:00:00'), new DateTime('2019-09-19 17:00:00'), '300.00'),
+                    new Interval(new DateTime('2019-09-19 17:00:01'), new DateTime('2019-09-19 20:00:00'), '400.00'),
+                ]
+            ],
+            /**
+             * Test that xxxxxxxxx  yyyy  turns into xxxxyyyy (i.e. x is split in two).
+             *                yyyy
+             */
+            'Interval is updated to another date and collides with another interval in the edge' => [
+                new IntervalUpdateRequest(
+                    $from = new DateTime('2019-09-20 16:00:00'),
+                    $to = new DateTime('2019-09-20 17:00:00'),
+                    $newFrom = new DateTime('2019-09-19 16:00:00'),
+                    $newTo = new DateTime('2019-09-19 20:00:00'),
+                    $price = '300'
+                ),
+                [
+                    new Interval(new DateTime('2019-09-19 10:00:00'), new DateTime('2019-09-19 20:00:00'), '400.00'),
+                    new Interval(new DateTime('2019-09-20 16:00:00'), new DateTime('2019-09-20 17:00:00'), '300.00'),
+                ],
+                [
+                    new Interval(new DateTime('2019-09-19 10:00:00'), new DateTime('2019-09-19 15:59:59'), '400.00'),
+                    new Interval(new DateTime('2019-09-19 16:00:00'), new DateTime('2019-09-19 20:00:00'), '300.00'),
+                ]
             ]
         ];
     }

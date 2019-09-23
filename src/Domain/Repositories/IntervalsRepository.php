@@ -49,7 +49,8 @@ class IntervalsRepository
     public function getAllInTimeRange(DateTime $from, DateTime $to, bool $strict = true)
     {
         $query = sprintf(
-            'SELECT * FROM %s WHERE (`from` BETWEEN :from AND :to) %s (`to` BETWEEN :from AND :to)',
+            'SELECT * FROM %s WHERE (`from` BETWEEN :from AND :to) %s (`to` BETWEEN :from AND :to) '
+            . 'OR `to` > :to and `from` < :from',
             $this->tableName,
             $strict ? 'AND' : 'OR'
         );
