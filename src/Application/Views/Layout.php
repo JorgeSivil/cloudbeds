@@ -21,7 +21,7 @@
         </nav>
 
         <div class="main container">
-            <div class="row" style="height: 100%">
+            <div class="row">
                 <?php echo $content; ?>
             </div>
         </div>

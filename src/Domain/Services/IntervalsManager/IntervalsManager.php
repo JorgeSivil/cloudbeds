@@ -380,6 +380,10 @@ class IntervalsManager extends Service
         );
     }
 
+    /**
+     * @param IntervalDeleteRequest $request
+     * @return InternalApiResponseInterface
+     */
     public function delete(IntervalDeleteRequest $request)
     {
         $errors = [];
@@ -393,5 +397,19 @@ class IntervalsManager extends Service
         return $response
             ? $this->success('Interval successfully updated.')
             : $this->error('Failure trying to update interval.', [], $errors);
+    }
+
+    public function deleteAll()
+    {
+        $response = false;
+        $errors = [];
+        try {
+            $response = $this->intervalsRepository->deleteAll();
+        } catch (Exception $e) {
+            $errors[] = $e->getMessage();
+        }
+        return $response
+            ? $this->success('All intervals deleted.')
+            : $this->error('Failure trying to delete all intervals.', [], $errors);
     }
 }

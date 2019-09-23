@@ -1,5 +1,4 @@
-<div id="scheduler_here" class="dhx_cal_container"
-     style='width:100%; height:100%;'>
+<div id="scheduler_here" class="dhx_cal_container">
     <div class="dhx_cal_navline">
         <div class="dhx_cal_prev_button">&nbsp;</div>
         <div class="dhx_cal_next_button">&nbsp;</div>
@@ -12,6 +11,7 @@
     <div class="dhx_cal_header"></div>
     <div class="dhx_cal_data"></div>
 </div>
+<button type="button" class="btn btn-danger btn-lg btn-block" id="remove-all">Remove all</button>
 <script>
 
 </script>

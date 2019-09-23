@@ -16,6 +16,11 @@ html, body {
     margin-right: 4px;
 }
 
+.dhx_cal_container {
+    width:100%;
+    height:90%;
+}
+
 .main.container .row {
     height: 100%;
 }

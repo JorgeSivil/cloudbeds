@@ -163,6 +163,15 @@ class IntervalsController extends Controller
         return $this->apiSuccess('Interval deleted.');
     }
 
+    public function deleteAllAction_post() {
+        try {
+            $this->intervalsService->deleteAll();
+        } catch (Exception $e) {
+            return $this->apiError('Error trying to delete all intervals.', [$e->getMessage()], 500);
+        }
+        return $this->apiSuccess('All intervals deleted.');
+    }
+
     /**
      * @return HttpResponse
      * @throws Exception

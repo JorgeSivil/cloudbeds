@@ -80,4 +80,9 @@ class Intervals
     {
         return $this->intervalsManager->delete($request);
     }
+
+    public function deleteAll()
+    {
+        $this->intervalsManager->deleteAll();
+    }
 }

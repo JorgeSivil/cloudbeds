@@ -10,6 +10,7 @@ use CloudBeds\Infrastructure\Services\DatabaseConnector\MySql;
 use DateTime;
 use Exception;
 use PDO;
+use PDOStatement;
 
 class IntervalsRepository
 {
@@ -50,7 +51,7 @@ class IntervalsRepository
     {
         $query = sprintf(
             'SELECT * FROM %s WHERE (`from` BETWEEN :from AND :to) %s (`to` BETWEEN :from AND :to) '
-            . 'OR `to` > :to and `from` < :from',
+            . 'OR `to` > :to AND `from` < :from',
             $this->tableName,
             $strict ? 'AND' : 'OR'
         );
@@ -153,6 +154,7 @@ class IntervalsRepository
             ':from' => $from->format(self::DATETIME_FORMAT),
             ':to' => $to->format(self::DATETIME_FORMAT),
         ]);
+
         return $pst->rowCount() === 1;
     }
 
@@ -170,6 +172,7 @@ class IntervalsRepository
             ':from' => $from->format(self::DATETIME_FORMAT),
             ':to' => $to->format(self::DATETIME_FORMAT),
         ]);
+
         return $pst->rowCount() === 1;
     }
 
@@ -208,11 +211,22 @@ class IntervalsRepository
     }
 
     /**
+     * Delete all intervals in the DB.
+     * @return bool
+     */
+    public function deleteAll()
+    {
+        $query = sprintf('DELETE FROM %s', $this->tableName);
+
+        return $this->dbConnection->getConnection()->query($query) !== false;
+    }
+
+    /**
      * @param IntervalDeleteRequest[] $deleteRequests
      * @return bool
      * @throws Exception
      */
-    public function deleteAll(array $deleteRequests = [])
+    public function deleteAllByPk(array $deleteRequests = [])
     {
         if (!$deleteRequests) {
             return true;
@@ -276,7 +290,7 @@ class IntervalsRepository
     ) {
         $this->beginTransaction();
         try {
-            $this->deleteAll($deleteRequests);
+            $this->deleteAllByPk($deleteRequests);
             $this->updateAll($updateRequests);
             $this->createAll($createRequests);
             $this->commitTransaction();

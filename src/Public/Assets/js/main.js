@@ -47,6 +47,19 @@ $(document).ready(function () {
     scheduler.attachEvent("onViewChange", function () {
         loadIntervals();
     });
+
+    $('#remove-all').on('click', function (event) {
+        $.ajax({
+            cache: false,
+            type: "POST",
+            url: '/intervals/deleteAll',
+            success: function () {
+                loadIntervals();
+            },
+            error: processAndAlertErrors,
+            dataType: 'json'
+        });
+    })
 });
 
 function createOrUpdateInterval(interval, isNew, intervalBeforeUpdate = {}) {
